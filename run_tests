@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+
+run_tests=''
+running_all=false
+
+TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
+export TEST_DIR
+
+if [[ -z ${*} ]]; then
+    running_all=true
+    run_tests=$(ls -1 ./tests/??-*-*.{sh,c} 2>/dev/null);
+fi
+
+for num in "${@}"; do 
+    test_name=$(printf "%02d" "${num}")
+    test_file=$(ls -1 ./tests/"${test_name}"-*-*.{sh,c} 2>/dev/null)
+    run_tests="${run_tests}${test_file}"$'\n'
+done
+
+if [[ -z "${run_tests}" ]]; then
+    echo "Error: no tests to run."
+    exit 1
+fi
+
+if [[ -d "${TEST_DIR}/prerun" ]]; then
+    for script in "${TEST_DIR}/prerun"/*; do
+        source "${script}"
+    done
+fi
+
+mkdir -p "${TEST_DIR}/outputs" 2>/dev/null
+num_commits=$(git -C "${TEST_DIR}" rev-list HEAD --count || echo "0")
+
+points=0
+total_points=0
+echo "Running Tests: (v${num_commits})"
+for test in ${run_tests}; do
+    test_file_name=$(basename "${test}")
+    test_num="${test_file_name%%-*}"
+    test_pts="${test_file_name##*-}"
+    test_pts="${test_pts/.sh/}"
+    test_pts="${test_pts/.c/}"
+    test_name="${test_file_name%-*}"
+    test_name="${test_name:3}"
+    test_name="${test_name//-/ }"
+    printf " * %s %-20s [%s pts]" "${test_num}" "${test_name:0:20}" "${test_pts}"
+    if [[ ! -x "${test}" ]]; then
+        echo "  [NoExec]"
+        continue
+    fi
+    ${test}
+    result=$?
+    if [[ ${result} -ne 0 ]]; then
+        if [[ ${result} -eq 139 ]]; then
+            echo "  [ SEGV ]"
+        else
+            echo "  [ FAIL ]"
+        fi
+    else
+        echo "  [  OK  ]"
+        (( points += test_pts ))
+    fi
+    (( total_points += test_pts ))
+done
+
+if [[ ${running_all} == true ]]; then
+    perc=$(awk '{ printf("%.1f\n", ($1 / $2) * 100) }' \
+        <<< "${points} ${total_points}")
+    echo "Execution complete. [${points}/${total_points} pts] (${perc}%)"
+fi
+
+if [[ -n "${TEST_QUIET}" ]]; then
+    exit ${points}
+fi
+
+if [[ ${points} -ne ${total_points} ]]; then
+    echo
+    while true; do
+        echo -n "View test output (enter number, q to quit, r to rerun): "
+        read -r view
+        if [[ -z "${view}" ]]; then
+            continue
+        fi
+
+        if [[ "${view}" == "q" || "${view}" == "Q" ]]; then
+            break
+        elif [[ "${view}" == "r" || "${view}" == "R" ]]; then
+            args=""
+            if [[ -n "${@}" ]]; then
+                args="run=${@}"
+            fi
+            
+            make --no-print-directory test ${args}
+            exit
+        fi
+
+        test_view=$(printf "tests/outputs/%02d.md" "${view}")
+        if [[ -e "${test_view}" ]]; then
+            ${PAGER:-less} "${test_view}"
+        else
+            echo "Test output '${view}' not found!"
+        fi
+    done
+else
+    if [[ ${running_all} == true ]]; then
+    cat <<'EOM'
+ ____________
+< Toot toot! >
+ ------------
+\                             .       .
+ \                           / `.   .' "
+  \                  .---.  <    > <    >  .---.
+   \                 |    \  \ - ~ ~ - /  /    |
+         _____          ..-~             ~-..-~
+        |     |   \~~~\.'                    `./~~~/
+       ---------   \__/                        \__/
+      .'  O    \     /               /       \  "
+     (_____,    `._.'               |         }  \/~~~/
+      `----.          /       }     |        /    \__/
+            `-.      |       /      |       /      `. ,~~|
+                ~-.__|      /_ - ~ ^|      /- _      `..-'
+                     |     /        |     /     ~-.     `-. _  _  _
+                     |_____|        |_____|         ~ - . _ _ _ _ _>
+
+EOM
+    fi
+fi

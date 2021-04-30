@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+export LD_LIBRARY_PATH="${TEST_DIR}/../"
+
+source "${TEST_DIR}/lib/funcs.bash"
+
+cc -g -Wall ${@} \
+    -L"${TEST_DIR}/../" \
+    -I"${TEST_DIR}/../" \
+    -I"${TEST_DIR}/lib" \
+    -include "${TEST_DIR}/lib/funcs.h" \
+    ${0} -o "${0}.out" || exit 1
+
+export test_num test_name test_pts
+
+"${0}.out"
+result="${?}"
+rm -f "${0}.out"
+
+test_checks "${result}"
+
+exit "${result}"
+
