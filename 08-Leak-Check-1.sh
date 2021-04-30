@@ -20,13 +20,13 @@ if ! ( which valgrind &> /dev/null ); then
 fi
 
 leak_output=$(timeout 10 valgrind \
-    --trace-children=no \
-    --child-silent-after-fork=yes \
+    --trace-children=yes \
+    --child-silent-after-fork=no \
     --leak-check=full \
     --track-fds=yes \
     --show-leak-kinds=all \
     --track-origins=yes \
-    ./miner 8 20 'Memory Leak Check')
+    ./miner 8 10 'Memory Leak Check')
 
 echo "${leak_output}"
 
