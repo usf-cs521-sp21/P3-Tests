@@ -11,30 +11,6 @@ fd_check='
     }
 }' 
 
-rand=${RANDOM}
-script=$(cat <<EOM
-ls /
-!1
-
-
-jobs
-cd
-ls / # Doing some more lsing
-!!
-asdfghjklqprewopiqwualasdf # Bad Command!
-# Comment only
-pwd
-echo hi
-sort -r -n < /etc/passwd > /tmp/$rand
-rm /tmp/$rand
-history
-!p
-
-
-echo bye
-EOM
-)
-
 test_start "Memory Leak Check"
 
 if ! ( which valgrind &> /dev/null ); then
@@ -50,7 +26,7 @@ leak_output=$(timeout 10 valgrind \
     --track-fds=yes \
     --show-leak-kinds=all \
     --track-origins=yes \
-    ./$SHELL_NAME < <(echo "${script}") 2>&1)
+    ./miner 8 20 'Memory Leak Check')
 
 echo "${leak_output}"
 
