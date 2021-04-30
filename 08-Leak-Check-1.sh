@@ -26,7 +26,7 @@ leak_output=$(timeout 10 valgrind \
     --track-fds=yes \
     --show-leak-kinds=all \
     --track-origins=yes \
-    ./miner 8 10 'Memory Leak Check')
+    ./miner 8 10 'Memory Leak Check' 2>&1)
 
 echo "${leak_output}"
 
